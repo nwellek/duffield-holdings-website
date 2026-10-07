@@ -474,7 +474,9 @@ footer a:hover{color:var(--white)}
       <input type="email" id="cf-email" placeholder="Email">
       <input type="text" id="cf-subject" placeholder="Subject — Deal, Consulting, Investment, Other">
       <textarea id="cf-message" placeholder="Tell us about your opportunity or question..."></textarea>
-      <button type="button" onclick="sendContactForm()">Send Message</button>
+      <input type="text" id="cf-hp" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+      <button type="button" id="cf-btn" onclick="sendContactForm()">Send Message</button>
+      <div id="cf-status" role="status" aria-live="polite" style="display:none;font-size:13px;line-height:1.6"></div>
     </div>
   </div>
 </div></section>
@@ -489,15 +491,33 @@ window.addEventListener('scroll',()=>{document.getElementById('navbar').classLis
 const obs=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){x.target.style.opacity='1';x.target.style.transform='translateY(0)'}})},{threshold:.08,rootMargin:'0px 0px -30px 0px'});
 document.querySelectorAll('.vc,.ci,.pc,.pc-sm,.ast,.adi').forEach(el=>{el.style.opacity='0';el.style.transform='translateY(14px)';el.style.transition='opacity .45s ease, transform .45s ease';obs.observe(el)});
 
-function sendContactForm(){
-  const name=document.getElementById('cf-name').value.trim();
-  const email=document.getElementById('cf-email').value.trim();
-  const subject=document.getElementById('cf-subject').value.trim()||'Website Inquiry';
-  const message=document.getElementById('cf-message').value.trim();
-  if(!name||!email||!message){alert('Please fill in your name, email, and message.');return;}
-  const body=encodeURIComponent('Name: '+name+'\nEmail: '+email+'\n\n'+message);
-  const subj=encodeURIComponent(subject+' — via duffieldholdings.com');
-  window.location.href='mailto:nwellek@duffieldholdings.com?subject='+subj+'&body='+body;
+async function sendContactForm(){
+  const g=id=>document.getElementById(id);
+  const name=g('cf-name').value.trim();
+  const email=g('cf-email').value.trim();
+  const subject=g('cf-subject').value.trim()||'Website Inquiry';
+  const message=g('cf-message').value.trim();
+  const st=g('cf-status'),btn=g('cf-btn');
+  const show=(t,ok)=>{st.textContent=t;st.style.color=ok?'#1E5631':'#B3261E';st.style.display='block'};
+  if(!name||!email||!message){show('Please fill in your name, email, and message.',false);return;}
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){show('Please enter a valid email address.',false);return;}
+  if(g('cf-hp').value){show('Thanks \u2014 your message has been sent.',true);return;}
+  btn.disabled=true;btn.textContent='Sending\u2026';
+  try{
+    const r=await fetch('https://formsubmit.co/ajax/nwellek@duffieldholdings.com',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json'},
+      body:JSON.stringify({name:name,email:email,message:message,_subject:subject+' \u2014 via duffieldholdings.com',_replyto:email,_template:'table',_captcha:'false'})
+    });
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok||String(j.success)!=='true')throw new Error(j.message||'send failed');
+    show('Thanks \u2014 your message has been sent. We\u2019ll be in touch shortly.',true);
+    ['cf-name','cf-email','cf-subject','cf-message'].forEach(i=>g(i).value='');
+  }catch(e){
+    st.innerHTML='Sorry, the message didn\u2019t go through. Please email <a href="mailto:nwellek@duffieldholdings.com" style="color:inherit">nwellek@duffieldholdings.com</a> directly.';
+    st.style.color='#B3261E';st.style.display='block';
+  }
+  btn.disabled=false;btn.textContent='Send Message';
 }
 </script>
 </body>
